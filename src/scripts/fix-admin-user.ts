@@ -6,7 +6,7 @@ import bcrypt from 'bcryptjs';
 
 const connectToDatabase = async () => {
   try {
-    await mongoose.connect('mongodb://admin:seminario123@localhost:27017/seminario_ubm?authSource=admin');
+    await mongoose.connect('mongodb://admin:seminario123@localhost:27018/seminario_ubm?authSource=admin');
     console.log('Conectado ao MongoDB');
   } catch (error) {
     console.error('Erro ao conectar ao MongoDB:', error);
