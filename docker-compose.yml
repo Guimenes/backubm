@@ -23,32 +23,6 @@ services:
       timeout: 5s
       retries: 5
 
-  # Backend API
-  backend:
-    build: 
-      context: ./seminario-backend
-      dockerfile: Dockerfile
-    container_name: seminario_backend
-    restart: unless-stopped
-    environment:
-      NODE_ENV: production
-      PORT: 5000
-      MONGODB_URI: mongodb://admin:seminario123@mongodb:27017/seminario_ubm?authSource=admin
-      JWT_SECRET: seminario_ubm_jwt_secret_key_2025
-      JWT_EXPIRE: 7d
-      CORS_ORIGIN: "*"
-      RATE_LIMIT_WINDOW_MS: 60000
-      RATE_LIMIT_MAX_REQUESTS: 1000
-    ports:
-      - "5000:5000"
-    depends_on:
-      mongodb:
-        condition: service_healthy
-    networks:
-      - seminario_network
-    volumes:
-      - ./seminario-backend/src:/app/src
-    command: npm run start:prod
 
 volumes:
   mongodb_data:
