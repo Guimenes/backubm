@@ -157,6 +157,9 @@ export class EventoController {
         case 'Oficina':
           prefixo = 'OFC';
           break;
+        case 'Banner':
+          prefixo = 'BAN';
+          break;
         default:
           prefixo = 'EVT';
       }
