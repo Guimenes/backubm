@@ -48,8 +48,11 @@ const eventoValidation = [
     .isIn(['Palestra Principal', 'Apresentação de Trabalhos', 'Oficina', 'Banner'])
     .withMessage('Tipo de evento deve ser: Palestra Principal, Apresentação de Trabalhos, Oficina ou Banner'),
   
-  body('curso')
-    .optional({ values: 'falsy' })
+  body('cursos')
+    .isArray({ min: 1 })
+    .withMessage('Pelo menos um curso deve ser selecionado'),
+  
+  body('cursos.*')
     .isMongoId()
     .withMessage('ID do curso deve ser válido'),
   

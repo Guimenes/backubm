@@ -120,6 +120,16 @@ export class EventoController {
 
       const { data, hora, duracao, tema, autores, palestrante, orientador, sala, tipoEvento, resumo, cursos } = req.body;
       
+      // Validação: pelo menos um curso deve ser selecionado
+      if (!cursos || !Array.isArray(cursos) || cursos.length === 0) {
+        res.status(400).json({
+          success: false,
+          message: 'Pelo menos um curso deve ser selecionado',
+          errors: [{ msg: 'Pelo menos um curso deve ser selecionado', param: 'cursos' }]
+        });
+        return;
+      }
+      
       // Validação personalizada: autores obrigatórios para tipos diferentes de "Palestra Principal"
       if (tipoEvento !== 'Palestra Principal') {
         if (!autores || !Array.isArray(autores) || autores.filter(a => a && a.trim()).length === 0) {
@@ -215,7 +225,7 @@ export class EventoController {
         sala,
         tipoEvento,
         resumo,
-        cursos: cursos || [] // Array de cursos, vazio se não informado (evento geral)
+        cursos: cursos // Array de cursos (agora obrigatório)
       });
       
       const eventoSalvo = await novoEvento.save();
@@ -252,6 +262,16 @@ export class EventoController {
       
       const { id } = req.params;
       const { data, hora, duracao, tema, autores, palestrante, orientador, sala, tipoEvento, resumo, cursos } = req.body;
+      
+      // Validação: pelo menos um curso deve ser selecionado
+      if (!cursos || !Array.isArray(cursos) || cursos.length === 0) {
+        res.status(400).json({
+          success: false,
+          message: 'Pelo menos um curso deve ser selecionado',
+          errors: [{ msg: 'Pelo menos um curso deve ser selecionado', param: 'cursos' }]
+        });
+        return;
+      }
       
       // Buscar o evento atual para manter o código
       const eventoAtual = await Evento.findById(id);
@@ -302,7 +322,7 @@ export class EventoController {
           sala, 
           tipoEvento, 
           resumo,
-          cursos: cursos || []
+          cursos: cursos
         },
         { new: true, runValidators: true }
       ).populate('cursos', 'nome cod');

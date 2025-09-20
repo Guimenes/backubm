@@ -74,10 +74,18 @@ const EventoSchema: Schema = new Schema({
       message: 'Tipo de evento deve ser: Palestra Principal, Apresentação de Trabalhos, Oficina ou Banner'
     }
   },
-  cursos: [{
-    type: Schema.Types.ObjectId,
-    ref: 'Curso'
-  }],
+  cursos: {
+    type: [{
+      type: Schema.Types.ObjectId,
+      ref: 'Curso'
+    }],
+    validate: {
+      validator: function(v: any[]) {
+        return v && v.length > 0;
+      },
+      message: 'Pelo menos um curso deve ser selecionado'
+    }
+  },
   resumo: {
     type: String,
     trim: true,
