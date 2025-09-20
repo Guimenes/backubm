@@ -30,7 +30,8 @@ export class EventoController {
       }
 
       if (curso) {
-        filtros.curso = curso;
+        // Se filtrar por curso específico, buscar eventos que incluam esse curso
+        filtros.cursos = { $in: [curso] };
       }
       
       if (search) {
@@ -46,7 +47,7 @@ export class EventoController {
       const skip = (parseInt(page as string) - 1) * parseInt(limit as string);
       
       const eventos = await Evento.find(filtros)
-        .populate('curso', 'nome cod')
+        .populate('cursos', 'nome cod')
         .sort({ data: 1, hora: 1 })
         .skip(skip)
         .limit(parseInt(limit as string));
@@ -77,7 +78,7 @@ export class EventoController {
     try {
       const { id } = req.params;
       
-      const evento = await Evento.findById(id).populate('curso', 'nome cod');
+      const evento = await Evento.findById(id).populate('cursos', 'nome cod');
       
       if (!evento) {
         res.status(404).json({
@@ -117,7 +118,7 @@ export class EventoController {
         return;
       }
 
-      const { data, hora, duracao, tema, autores, palestrante, orientador, sala, tipoEvento, resumo, curso } = req.body;
+      const { data, hora, duracao, tema, autores, palestrante, orientador, sala, tipoEvento, resumo, cursos } = req.body;
       
       // Validação personalizada: autores obrigatórios para tipos diferentes de "Palestra Principal"
       if (tipoEvento !== 'Palestra Principal') {
@@ -214,18 +215,18 @@ export class EventoController {
         sala,
         tipoEvento,
         resumo,
-        curso
+        cursos: cursos || [] // Array de cursos, vazio se não informado (evento geral)
       });
       
       const eventoSalvo = await novoEvento.save();
       
-      // Fazer populate do curso antes de retornar
-      const eventoComCurso = await Evento.findById(eventoSalvo._id).populate('curso', 'nome cod');
+      // Fazer populate dos cursos antes de retornar
+      const eventoComCursos = await Evento.findById(eventoSalvo._id).populate('cursos', 'nome cod');
       
       res.status(201).json({
         success: true,
         message: 'Evento criado com sucesso',
-        data: eventoComCurso
+        data: eventoComCursos
       });
     } catch (error: any) {
       res.status(500).json({
@@ -250,7 +251,7 @@ export class EventoController {
       }
       
       const { id } = req.params;
-      const { data, hora, duracao, tema, autores, palestrante, orientador, sala, tipoEvento, resumo, curso } = req.body;
+      const { data, hora, duracao, tema, autores, palestrante, orientador, sala, tipoEvento, resumo, cursos } = req.body;
       
       // Buscar o evento atual para manter o código
       const eventoAtual = await Evento.findById(id);
@@ -301,10 +302,10 @@ export class EventoController {
           sala, 
           tipoEvento, 
           resumo,
-          curso 
+          cursos: cursos || []
         },
         { new: true, runValidators: true }
-      ).populate('curso', 'nome cod');
+      ).populate('cursos', 'nome cod');
       
       res.status(200).json({
         success: true,

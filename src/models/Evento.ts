@@ -11,7 +11,7 @@ export interface IEvento extends Document {
   orientador?: string; // Para outros tipos de evento
   sala: string;
   tipoEvento: 'Palestra Principal' | 'Apresentação de Trabalhos' | 'Oficina' | 'Banner';
-  curso?: mongoose.Types.ObjectId; // ID do curso associado (opcional - se não informado, evento é "geral")
+  cursos: mongoose.Types.ObjectId[]; // Array de IDs dos cursos associados (vazio se evento for "geral")
   resumo?: string;
   createdAt: Date;
   updatedAt: Date;
@@ -74,12 +74,10 @@ const EventoSchema: Schema = new Schema({
       message: 'Tipo de evento deve ser: Palestra Principal, Apresentação de Trabalhos, Oficina ou Banner'
     }
   },
-  curso: {
+  cursos: [{
     type: Schema.Types.ObjectId,
-    ref: 'Curso',
-    required: false
-    // Se não informado, evento é considerado "geral"
-  },
+    ref: 'Curso'
+  }],
   resumo: {
     type: String,
     trim: true,
@@ -94,7 +92,7 @@ const EventoSchema: Schema = new Schema({
 EventoSchema.index({ cod: 1 });
 EventoSchema.index({ data: 1 });
 EventoSchema.index({ tipoEvento: 1 });
-EventoSchema.index({ curso: 1 });
+EventoSchema.index({ cursos: 1 });
 EventoSchema.index({ tema: 'text', autores: 'text', palestrante: 'text', orientador: 'text' });
 
 export default mongoose.model<IEvento>('Evento', EventoSchema);
