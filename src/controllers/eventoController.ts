@@ -232,6 +232,10 @@ export class EventoController {
         return;
       }
       
+      // Preparar campos de cursos com compatibilidade (cursos múltiplos e curso legado)
+      const cursosArray = Array.isArray(cursos) ? cursos : (curso ? [curso] : undefined);
+      const cursoLegado = curso ?? (Array.isArray(cursos) && cursos.length > 0 ? cursos[0] : undefined);
+
       const novoEvento = new Evento({
         cod,
         data: dataEvento,
@@ -245,9 +249,9 @@ export class EventoController {
         tipoEvento,
         resumo,
         // Preenche o novo campo `cursos` se enviado; se não, mapeia do campo legado `curso` quando houver
-        cursos: Array.isArray(cursos) ? cursos : (curso ? [curso] : undefined),
-        // Mantém o campo legado para compatibilidade
-        curso
+        cursos: cursosArray,
+        // Mantém o campo legado para compatibilidade; quando não enviado, usa o primeiro de `cursos`
+        curso: cursoLegado
       });
       
       const eventoSalvo = await novoEvento.save();
@@ -322,6 +326,9 @@ export class EventoController {
         }
       }
       
+      const cursosAtualizados = Array.isArray(cursos) ? cursos : (curso ? [curso] : undefined);
+      const cursoLegadoAtualizado = curso ?? (Array.isArray(cursos) && cursos.length > 0 ? cursos[0] : undefined);
+
       const eventoAtualizado = await Evento.findByIdAndUpdate(
         id,
         { 
@@ -338,8 +345,8 @@ export class EventoController {
           tipoEvento, 
           resumo,
           // Atualiza ambos campos por compatibilidade
-          curso,
-          cursos: Array.isArray(cursos) ? cursos : (curso ? [curso] : undefined)
+          curso: cursoLegadoAtualizado,
+          cursos: cursosAtualizados
         },
         { new: true, runValidators: true }
       ).populate('curso', 'nome cod').populate('cursos', 'nome cod');
