@@ -30,23 +30,48 @@ export class EventoController {
       }
 
       if (curso) {
-        filtros.curso = curso;
+        // Suporta tanto o campo legado `curso` quanto o novo `cursos` (array)
+        const filtroCurso = { $or: [{ curso }, { cursos: curso }] };
+        if (filtros.$or) {
+          // Já existe um $or (provavelmente de busca). Combinar com AND.
+          filtros.$and = [
+            { $or: filtros.$or },
+            filtroCurso
+          ];
+          delete filtros.$or;
+        } else {
+          Object.assign(filtros, filtroCurso);
+        }
       }
       
       if (search) {
-        filtros.$or = [
-          { cod: { $regex: search, $options: 'i' } },
-          { tema: { $regex: search, $options: 'i' } },
-          { autores: { $in: [{ $regex: search, $options: 'i' }] } },
-          { palestrante: { $regex: search, $options: 'i' } },
-          { orientador: { $regex: search, $options: 'i' } }
-        ];
+        const searchFilter = {
+          $or: [
+            { cod: { $regex: search, $options: 'i' } },
+            { tema: { $regex: search, $options: 'i' } },
+            { autores: { $in: [{ $regex: search, $options: 'i' }] } },
+            { palestrante: { $regex: search, $options: 'i' } },
+            { orientador: { $regex: search, $options: 'i' } }
+          ]
+        };
+        
+        if (filtros.$or) {
+          // Se já existe um $or (do curso), combina com AND
+          filtros.$and = [
+            { $or: filtros.$or },
+            searchFilter
+          ];
+          delete filtros.$or;
+        } else {
+          Object.assign(filtros, searchFilter);
+        }
       }
       
       const skip = (parseInt(page as string) - 1) * parseInt(limit as string);
       
       const eventos = await Evento.find(filtros)
         .populate('curso', 'nome cod')
+        .populate('cursos', 'nome cod')
         .sort({ data: 1, hora: 1 })
         .skip(skip)
         .limit(parseInt(limit as string));
@@ -77,7 +102,9 @@ export class EventoController {
     try {
       const { id } = req.params;
       
-      const evento = await Evento.findById(id).populate('curso', 'nome cod');
+      const evento = await Evento.findById(id)
+        .populate('curso', 'nome cod')
+        .populate('cursos', 'nome cod');
       
       if (!evento) {
         res.status(404).json({
@@ -117,7 +144,7 @@ export class EventoController {
         return;
       }
 
-      const { data, hora, duracao, tema, autores, palestrante, orientador, sala, tipoEvento, resumo, curso } = req.body;
+      const { data, hora, duracao, tema, autores, palestrante, orientador, sala, tipoEvento, resumo, curso, cursos } = req.body;
       
       // Validação personalizada: autores obrigatórios para tipos diferentes de "Palestra Principal"
       if (tipoEvento !== 'Palestra Principal') {
@@ -141,7 +168,9 @@ export class EventoController {
           });
           return;
         }
-      }      // Converter strings para Date
+      }
+
+      // Converter strings para Date
       const dataEvento = new Date(data);
       const horaEvento = new Date(hora);
       
@@ -185,6 +214,7 @@ export class EventoController {
       const dataHoraInicio = new Date(dataInicio);
       dataHoraInicio.setHours(horaInicio.getHours(), horaInicio.getMinutes(), 0, 0);
       
+      // Verificar conflito apenas no mesmo local e horário
       const conflito = await Evento.findOne({
         sala,
         data: {
@@ -214,13 +244,18 @@ export class EventoController {
         sala,
         tipoEvento,
         resumo,
+        // Preenche o novo campo `cursos` se enviado; se não, mapeia do campo legado `curso` quando houver
+        cursos: Array.isArray(cursos) ? cursos : (curso ? [curso] : undefined),
+        // Mantém o campo legado para compatibilidade
         curso
       });
       
       const eventoSalvo = await novoEvento.save();
       
       // Fazer populate do curso antes de retornar
-      const eventoComCurso = await Evento.findById(eventoSalvo._id).populate('curso', 'nome cod');
+      const eventoComCurso = await Evento.findById(eventoSalvo._id)
+        .populate('curso', 'nome cod')
+        .populate('cursos', 'nome cod');
       
       res.status(201).json({
         success: true,
@@ -250,7 +285,7 @@ export class EventoController {
       }
       
       const { id } = req.params;
-      const { data, hora, duracao, tema, autores, palestrante, orientador, sala, tipoEvento, resumo, curso } = req.body;
+      const { data, hora, duracao, tema, autores, palestrante, orientador, sala, tipoEvento, resumo, curso, cursos } = req.body;
       
       // Buscar o evento atual para manter o código
       const eventoAtual = await Evento.findById(id);
@@ -262,14 +297,15 @@ export class EventoController {
         return;
       }
       
-      // Verificar conflito de horário na mesma sala (excluindo o trabalho atual)
+      // Verificar conflito de horário na mesma sala (excluindo o evento atual)
       if (data && hora && sala) {
         const dataInicio = new Date(data);
         const horaInicio = new Date(hora);
         
+        // Verificar conflito apenas no mesmo local e horário
         const conflito = await Evento.findOne({
           _id: { $ne: id },
-          sala,
+          sala: sala, // Garantir que é o mesmo local
           data: {
             $gte: new Date(dataInicio.setHours(0, 0, 0, 0)),
             $lt: new Date(dataInicio.setHours(23, 59, 59, 999))
@@ -301,10 +337,12 @@ export class EventoController {
           sala, 
           tipoEvento, 
           resumo,
-          curso 
+          // Atualiza ambos campos por compatibilidade
+          curso,
+          cursos: Array.isArray(cursos) ? cursos : (curso ? [curso] : undefined)
         },
         { new: true, runValidators: true }
-      ).populate('curso', 'nome cod');
+      ).populate('curso', 'nome cod').populate('cursos', 'nome cod');
       
       res.status(200).json({
         success: true,
@@ -408,7 +446,10 @@ export class EventoController {
           $gte: new Date(dataFiltro.setHours(0, 0, 0, 0)),
           $lt: new Date(dataFiltro.setHours(23, 59, 59, 999))
         }
-      }).sort({ hora: 1 });
+      })
+      .populate('curso', 'nome cod')
+      .populate('cursos', 'nome cod')
+      .sort({ hora: 1 });
       
       res.status(200).json({
         success: true,

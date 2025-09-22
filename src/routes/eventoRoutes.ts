@@ -52,6 +52,16 @@ const eventoValidation = [
     .optional({ values: 'falsy' })
     .isMongoId()
     .withMessage('ID do curso deve ser válido'),
+
+  // Novo: permitir múltiplos cursos
+  body('cursos')
+    .optional()
+    .isArray()
+    .withMessage('Cursos deve ser um array de IDs'),
+  body('cursos.*')
+    .optional()
+    .isMongoId()
+    .withMessage('Cada curso deve ser um ID válido'),
   
   body('resumo')
     .optional()
