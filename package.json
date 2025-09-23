@@ -10,6 +10,7 @@
     "start:prod": "npm run build && npm start",
     "init:permissions": "ts-node src/scripts/run-init-permissions.ts",
     "migrate:eventos:curso": "ts-node src/scripts/migrate-eventos-curso.ts",
+  "migrate:eventos:curso:dist": "node dist/scripts/migrate-eventos-curso.js",
     "test": "jest",
     "seed": "ts-node src/scripts/seed.ts",
     "clear:events": "ts-node src/scripts/clear-events.ts"
