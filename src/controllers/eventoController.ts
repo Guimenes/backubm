@@ -233,8 +233,12 @@ export class EventoController {
       }
       
       // Preparar campos de cursos com compatibilidade (cursos múltiplos e curso legado)
-      const cursosArray = Array.isArray(cursos) ? cursos : (curso ? [curso] : undefined);
-      const cursoLegado = curso ?? (Array.isArray(cursos) && cursos.length > 0 ? cursos[0] : undefined);
+      const cursosArrayRaw = Array.isArray(cursos) ? cursos : (curso ? [curso] : undefined);
+      // Normalizar: filtra vazios, converte para string e remove duplicados
+      const cursosArray = Array.isArray(cursosArrayRaw)
+        ? Array.from(new Set(cursosArrayRaw.filter(Boolean).map((c: any) => String(c))))
+        : undefined;
+      const cursoLegado = curso ?? (Array.isArray(cursosArray) && cursosArray.length > 0 ? cursosArray[0] : undefined);
 
       const novoEvento = new Evento({
         cod,
@@ -326,8 +330,11 @@ export class EventoController {
         }
       }
       
-      const cursosAtualizados = Array.isArray(cursos) ? cursos : (curso ? [curso] : undefined);
-      const cursoLegadoAtualizado = curso ?? (Array.isArray(cursos) && cursos.length > 0 ? cursos[0] : undefined);
+      const cursosAtualizadosRaw = Array.isArray(cursos) ? cursos : (curso ? [curso] : undefined);
+      const cursosAtualizados = Array.isArray(cursosAtualizadosRaw)
+        ? Array.from(new Set(cursosAtualizadosRaw.filter(Boolean).map((c: any) => String(c))))
+        : undefined;
+      const cursoLegadoAtualizado = curso ?? (Array.isArray(cursosAtualizados) && cursosAtualizados.length > 0 ? cursosAtualizados[0] : undefined);
 
       const eventoAtualizado = await Evento.findByIdAndUpdate(
         id,
