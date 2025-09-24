@@ -67,20 +67,15 @@ export class LocalController {
 
   // Listar locais que possuem eventos
   static async listarLocaisComEventos(req: Request, res: Response): Promise<void> {
-    console.log('🚀 ROTA /com-eventos foi chamada!');
     try {
-      console.log('=== Buscando locais com eventos ===');
-      
       // Usar MongoDB nativo para garantir que estamos acessando a coleção correta
       const mongoose = require('mongoose');
       const db = mongoose.connection.db;
       
       // Buscar todos os trabalhos/eventos na coleção
       const trabalhos = await db.collection('trabalhos').find({}).toArray();
-      console.log(`Encontrados ${trabalhos.length} trabalhos na coleção`);
       
       if (trabalhos.length === 0) {
-        console.log('Nenhum trabalho encontrado na coleção');
         res.status(200).json({
           success: true,
           data: []
@@ -100,19 +95,18 @@ export class LocalController {
       // Converter Set para Array e ordenar
       const locaisArray = Array.from(locaisUnicos).sort();
       
-      console.log('Locais únicos encontrados:', locaisArray);
-      
       res.status(200).json({
         success: true,
         data: locaisArray
       });
       
     } catch (error: any) {
-      console.error('Erro ao buscar locais com eventos:', error);
+      if (process.env.NODE_ENV === 'development') {
+        console.error('Erro ao buscar locais com eventos:', error);
+      }
       res.status(500).json({
         success: false,
-        message: 'Erro ao buscar locais com eventos',
-        error: error.message
+        message: 'Erro interno do servidor'
       });
     }
   }
@@ -124,14 +118,11 @@ export class LocalController {
       
       // Se foi solicitado apenas locais com eventos
       if (comEventos === 'true') {
-        console.log('🚀 Solicitados apenas locais com eventos');
-        
         // Usar MongoDB nativo para buscar na coleção trabalhos
         const mongoose = require('mongoose');
         const db = mongoose.connection.db;
         
         const trabalhos = await db.collection('trabalhos').find({}).toArray();
-        console.log(`Encontrados ${trabalhos.length} trabalhos na coleção`);
         
         if (trabalhos.length === 0) {
           res.status(200).json({
@@ -152,8 +143,6 @@ export class LocalController {
         
         // Converter Set para Array e ordenar
         const locaisArray = Array.from(locaisUnicos).sort();
-        
-        console.log('Locais únicos encontrados:', locaisArray);
         
         res.status(200).json({
           success: true,

@@ -130,16 +130,12 @@ export class EventoController {
   // Criar novo evento
   static async criarEvento(req: Request, res: Response): Promise<void> {
     try {
-      console.log('Dados recebidos no backend:', req.body);
-      
       // Verificar erros de validação
       const errors = validationResult(req);
       if (!errors.isEmpty()) {
-        console.log('Erros de validação:', errors.array());
         res.status(400).json({
           success: false,
-          message: 'Dados inválidos',
-          errors: errors.array()
+          message: 'Dados fornecidos são inválidos'
         });
         return;
       }

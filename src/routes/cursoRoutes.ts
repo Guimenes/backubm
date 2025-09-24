@@ -1,6 +1,7 @@
 import express from 'express';
 import { body, param, query } from 'express-validator';
 import { CursoController } from '../controllers/cursoController';
+import { authenticateToken, requirePermission, requireAdminToken } from '../middleware/auth';
 
 const router = express.Router();
 
@@ -25,6 +26,8 @@ router.get(
 // Criar curso
 router.post(
   '/',
+  authenticateToken,
+  requirePermission('CURSOS_CRIAR'),
   [
     body('cod')
       .optional()
@@ -44,6 +47,8 @@ router.post(
 // Atualizar curso
 router.put(
   '/:id',
+  authenticateToken,
+  requirePermission('CURSOS_EDITAR'),
   [
     param('id').isMongoId().withMessage('ID inválido'),
     body('cod').optional().isString().trim().isLength({ min: 2, max: 20 }).withMessage('cod deve ter entre 2 e 20 caracteres').toUpperCase(),
@@ -55,6 +60,9 @@ router.put(
 // Deletar curso
 router.delete(
   '/:id',
+  authenticateToken,
+  requireAdminToken,
+  requirePermission('CURSOS_EXCLUIR'),
   [param('id').isMongoId().withMessage('ID inválido')],
   CursoController.deletarCurso
 );

@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { validationResult } from 'express-validator';
 import Curso, { ICurso } from '../models/Curso';
+import { ErrorHandler } from '../utils/errorHandler';
 
 export class CursoController {
   // Listar cursos com paginação e busca
@@ -44,11 +45,7 @@ export class CursoController {
         }
       });
     } catch (error: any) {
-      res.status(500).json({
-        success: false,
-        message: 'Erro ao listar cursos',
-        error: error.message
-      });
+      ErrorHandler.handleInternalError(res, error);
     }
   }
 
@@ -58,16 +55,12 @@ export class CursoController {
       const { id } = req.params;
       const curso = await Curso.findById(id);
       if (!curso) {
-        res.status(404).json({ success: false, message: 'Curso não encontrado' });
+        ErrorHandler.handleNotFoundError(res, 'Curso não encontrado');
         return;
       }
       res.status(200).json({ success: true, data: curso });
     } catch (error: any) {
-      res.status(500).json({
-        success: false,
-        message: 'Erro ao buscar curso',
-        error: error.message
-      });
+      ErrorHandler.handleInternalError(res, error);
     }
   }
 
@@ -76,7 +69,7 @@ export class CursoController {
     try {
       const errors = validationResult(req);
       if (!errors.isEmpty()) {
-        res.status(400).json({ success: false, message: 'Dados inválidos', errors: errors.array() });
+        ErrorHandler.handleValidationError(res, 'Dados fornecidos são inválidos');
         return;
       }
 
@@ -89,7 +82,7 @@ export class CursoController {
 
       const existente = await Curso.findOne({ cod });
       if (existente) {
-        res.status(400).json({ success: false, message: 'Já existe um curso com este código' });
+        ErrorHandler.handleConflictError(res, 'Dados já existem no sistema');
         return;
       }
 
@@ -97,7 +90,7 @@ export class CursoController {
       const salvo = await novo.save();
       res.status(201).json({ success: true, message: 'Curso criado com sucesso', data: salvo });
     } catch (error: any) {
-      res.status(500).json({ success: false, message: 'Erro ao criar curso', error: error.message });
+      ErrorHandler.handleInternalError(res, error);
     }
   }
 
@@ -157,7 +150,7 @@ export class CursoController {
     try {
       const errors = validationResult(req);
       if (!errors.isEmpty()) {
-        res.status(400).json({ success: false, message: 'Dados inválidos', errors: errors.array() });
+        ErrorHandler.handleValidationError(res, 'Dados fornecidos são inválidos');
         return;
       }
 
@@ -168,7 +161,7 @@ export class CursoController {
       if (cod) {
         const conflito = await Curso.findOne({ cod, _id: { $ne: id } });
         if (conflito) {
-          res.status(400).json({ success: false, message: 'Já existe um curso com este código' });
+          ErrorHandler.handleConflictError(res, 'Dados já existem no sistema');
           return;
         }
       }
@@ -180,13 +173,13 @@ export class CursoController {
       );
 
       if (!atualizado) {
-        res.status(404).json({ success: false, message: 'Curso não encontrado' });
+        ErrorHandler.handleNotFoundError(res, 'Curso não encontrado');
         return;
       }
 
       res.status(200).json({ success: true, message: 'Curso atualizado com sucesso', data: atualizado });
     } catch (error: any) {
-      res.status(500).json({ success: false, message: 'Erro ao atualizar curso', error: error.message });
+      ErrorHandler.handleInternalError(res, error);
     }
   }
 
@@ -196,12 +189,12 @@ export class CursoController {
       const { id } = req.params;
       const deletado = await Curso.findByIdAndDelete(id);
       if (!deletado) {
-        res.status(404).json({ success: false, message: 'Curso não encontrado' });
+        ErrorHandler.handleNotFoundError(res, 'Curso não encontrado');
         return;
       }
       res.status(200).json({ success: true, message: 'Curso deletado com sucesso' });
     } catch (error: any) {
-      res.status(500).json({ success: false, message: 'Erro ao deletar curso', error: error.message });
+      ErrorHandler.handleInternalError(res, error);
     }
   }
 }

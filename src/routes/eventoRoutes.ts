@@ -1,6 +1,7 @@
 import express from 'express';
 import { body } from 'express-validator';
 import { EventoController } from '../controllers/eventoController';
+import { authenticateToken, requirePermission, requireAdminToken } from '../middleware/auth';
 
 const router = express.Router();
 
@@ -74,8 +75,8 @@ router.get('/', EventoController.listarEventos);
 router.get('/estatisticas', EventoController.estatisticasEventos);
 router.get('/cronograma', EventoController.cronograma);
 router.get('/:id', EventoController.buscarEventoPorId);
-router.post('/', eventoValidation, EventoController.criarEvento);
-router.put('/:id', eventoValidation, EventoController.atualizarEvento);
-router.delete('/:id', EventoController.deletarEvento);
+router.post('/', authenticateToken, requirePermission('EVENTOS_CRIAR'), eventoValidation, EventoController.criarEvento);
+router.put('/:id', authenticateToken, requirePermission('EVENTOS_EDITAR'), eventoValidation, EventoController.atualizarEvento);
+router.delete('/:id', authenticateToken, requireAdminToken, requirePermission('EVENTOS_EXCLUIR'), EventoController.deletarEvento);
 
 export default router;

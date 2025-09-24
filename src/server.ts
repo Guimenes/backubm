@@ -23,6 +23,9 @@ import authRoutes from './routes/authRoutes';
 import permissaoRoutes from './routes/permissaoRoutes';
 import perfilRoutes from './routes/perfilRoutes';
 
+// Importar middleware de segurança da Cloudflare
+import { CloudflareSecurityMiddleware } from './middleware/cloudflareAuth';
+
 // Carregar variáveis de ambiente
 dotenv.config();
 
@@ -35,41 +38,64 @@ connectDB();
 // Middleware de segurança
 app.use(helmet());
 
-// CORS configurado para aceitar qualquer origem ou origens específicas
+// Configuração segura de CORS
 const corsOrigin = process.env.CORS_ORIGIN || '';
 const allowedOrigins = corsOrigin.split(',').map(o => o.trim()).filter(Boolean);
+const isDevelopment = process.env.NODE_ENV === 'development';
 
 app.use(cors({
   origin: (origin, callback) => {
-    // Se CORS_ORIGIN for '*', permite qualquer origem
-    if (corsOrigin === '*') {
+    // Log da origem para auditoria (apenas em desenvolvimento)
+    if (isDevelopment && origin) {
+      console.log(`CORS request from origin: ${origin}`);
+    }
+    
+    // Em produção, bloqueia se não houver origem definida nas variáveis de ambiente
+    if (!isDevelopment && allowedOrigins.length === 0) {
+      return callback(new Error('CORS não configurado adequadamente'));
+    }
+    
+    // Permite qualquer origem apenas em desenvolvimento se configurado com '*'
+    if (isDevelopment && corsOrigin === '*') {
       return callback(null, true);
     }
     
-    // Permite requests sem origin (ex: curl, mobile apps)
-    if (!origin) return callback(null, true);
+    // Permite requests sem origin apenas em desenvolvimento (ex: curl, postman)
+    if (!origin) {
+      return callback(null, isDevelopment);
+    }
     
     // Verifica se a origem está na lista de permitidas
-    if (allowedOrigins.length === 0 || allowedOrigins.includes(origin)) {
+    if (allowedOrigins.includes(origin)) {
       return callback(null, true);
     }
     
-    return callback(new Error(`Not allowed by CORS: ${origin}`));
+    // Se chegou até aqui, bloqueia a requisição
+    if (isDevelopment) {
+      console.warn(`CORS bloqueado para origem: ${origin}`);
+    }
+    return callback(new Error(`Origem não autorizada pelo CORS: ${origin}`));
   },
-  credentials: true
+  credentials: true,
+  optionsSuccessStatus: 200 // Para suporte a browsers legados
 }));
 
-// Rate limiting (comentado temporariamente para debug)
-/*
+// Rate limiting - Configuração segura para produção
 const limiter = rateLimit({
   windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS || '900000'), // 15 minutos
   max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS || '100'), // limite de requests por IP
   message: {
-    error: 'Muitas tentativas. Tente novamente em 15 minutos.'
+    success: false,
+    message: 'Muitas tentativas. Tente novamente em 15 minutos.'
+  },
+  standardHeaders: true, // Retorna rate limit info nos headers `RateLimit-*`
+  legacyHeaders: false, // Desabilita headers `X-RateLimit-*`
+  skip: (req) => {
+    // Pula rate limiting para health checks
+    return req.path === '/health';
   }
 });
-app.use('/api/', limiter); 
-*/
+app.use('/api/', limiter);
 
 // Logging
 if (process.env.NODE_ENV === 'development') {
@@ -80,8 +106,8 @@ if (process.env.NODE_ENV === 'development') {
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
-// Health check
-app.get('/health', (req, res) => {
+// Health check - sem restrições de origem
+app.get('/health', CloudflareSecurityMiddleware.allowHealthChecks, (req, res) => {
   res.status(200).json({
     success: true,
     message: 'Servidor funcionando corretamente',
@@ -90,14 +116,14 @@ app.get('/health', (req, res) => {
   });
 });
 
-// API Routes
-app.use('/api/auth', authRoutes);
-app.use('/api/locais', localRoutes);
-app.use('/api/cursos', cursoRoutes);
-app.use('/api/eventos', eventoRoutes);
-app.use('/api/usuarios', usuarioRoutes);
-app.use('/api/permissoes', permissaoRoutes);
-app.use('/api/perfis', perfilRoutes);
+// API Routes com validação de origem da Cloudflare
+app.use('/api/auth', CloudflareSecurityMiddleware.validateCloudflareOrigin, authRoutes);
+app.use('/api/locais', CloudflareSecurityMiddleware.validatePublicAccess, localRoutes);
+app.use('/api/cursos', CloudflareSecurityMiddleware.validatePublicAccess, cursoRoutes);
+app.use('/api/eventos', CloudflareSecurityMiddleware.validatePublicAccess, eventoRoutes);
+app.use('/api/usuarios', CloudflareSecurityMiddleware.validateCloudflareOrigin, usuarioRoutes);
+app.use('/api/permissoes', CloudflareSecurityMiddleware.validateCloudflareOrigin, permissaoRoutes);
+app.use('/api/perfis', CloudflareSecurityMiddleware.validateCloudflareOrigin, perfilRoutes);
 
 // Rota raiz
 app.get('/', (req, res) => {
@@ -117,12 +143,31 @@ app.get('/', (req, res) => {
 
 // Error handling middleware
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
-  console.error(err.stack);
+  // Log seguro apenas em desenvolvimento
+  if (process.env.NODE_ENV === 'development') {
+    console.error('Error details:', err);
+  } else {
+    // Em produção, log apenas informações essenciais
+    console.error('Error occurred:', {
+      timestamp: new Date().toISOString(),
+      method: req.method,
+      url: req.url,
+      ip: req.ip,
+      userAgent: req.get('User-Agent')
+    });
+  }
   
-  res.status(err.status || 500).json({
+  // Resposta segura
+  const statusCode = err.status || 500;
+  const message = statusCode < 500 ? (err.message || 'Erro na requisição') : 'Erro interno do servidor';
+  
+  res.status(statusCode).json({
     success: false,
-    message: err.message || 'Erro interno do servidor',
-    ...(process.env.NODE_ENV === 'development' && { stack: err.stack })
+    message: message,
+    ...(process.env.NODE_ENV === 'development' && statusCode >= 500 && { 
+      error: err.message,
+      stack: err.stack 
+    })
   });
 });
 
@@ -137,14 +182,18 @@ app.use('*', (req, res) => {
 // Iniciar servidor
 const portNumber = parseInt(PORT.toString());
 app.listen(portNumber, '0.0.0.0', () => {
-  console.log(`
+  const isDevelopment = process.env.NODE_ENV === 'development';
+  
+  if (isDevelopment) {
+    console.log(`
 🚀 Servidor iniciado com sucesso!
 📍 Ambiente: ${process.env.NODE_ENV || 'development'}
 🔗 URL Local: http://localhost:${PORT}
-🌐 URL Rede: http://192.168.29.10:${PORT}
-💾 Banco: ${process.env.MONGODB_URI}
 🕒 ${new Date().toLocaleString('pt-BR')}
-  `);
+    `);
+  } else {
+    console.log(`Servidor iniciado na porta ${PORT} em ambiente de produção - ${new Date().toISOString()}`);
+  }
 });
 
 export default app;

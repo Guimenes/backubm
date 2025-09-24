@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { body } from 'express-validator';
 import { LocalController } from '../controllers/localController';
+import { authenticateToken, requirePermission, requireAdminToken } from '../middleware/auth';
 
 const router = Router();
 
@@ -85,12 +86,10 @@ const validacaoAtualizacao = [
 router.get('/', LocalController.listarLocais);
 router.get('/estatisticas', LocalController.estatisticasLocais);
 router.get('/com-eventos', LocalController.listarLocaisComEventos);
-router.get('/gerar-codigo/:tipoLocal', LocalController.gerarCodigoUnico);
+router.get('/gerar-codigo/:tipoLocal', authenticateToken, requirePermission('LOCAIS_CRIAR'), LocalController.gerarCodigoUnico);
 router.get('/:id', LocalController.buscarLocalPorId);
-router.post('/', validacaoLocal, LocalController.criarLocal);
-router.put('/:id', validacaoAtualizacao, LocalController.atualizarLocal);
-router.delete('/:id', LocalController.deletarLocal);
-
-console.log('✅ Rotas de locais registradas, incluindo /com-eventos');
+router.post('/', authenticateToken, requirePermission('LOCAIS_CRIAR'), validacaoLocal, LocalController.criarLocal);
+router.put('/:id', authenticateToken, requirePermission('LOCAIS_EDITAR'), validacaoAtualizacao, LocalController.atualizarLocal);
+router.delete('/:id', authenticateToken, requireAdminToken, requirePermission('LOCAIS_EXCLUIR'), LocalController.deletarLocal);
 
 export default router;

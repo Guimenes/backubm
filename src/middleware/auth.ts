@@ -105,7 +105,10 @@ export const authenticateToken = async (req: AuthenticatedRequest, res: Response
       return;
     }
 
-    console.error('Erro na autenticação:', error);
+    // Log seguro apenas em desenvolvimento
+    if (process.env.NODE_ENV === 'development') {
+      console.error('Erro na autenticação:', error);
+    }
     res.status(500).json({
       success: false,
       message: 'Erro interno do servidor'
@@ -133,6 +136,64 @@ export const requirePermission = (permissaoNecessaria: string) => {
 
     next();
   };
+};
+
+/**
+ * Middleware especial para operações críticas (DELETE)
+ * Requer token de admin válido para operações destrutivas
+ */
+export const requireAdminToken = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    if (!req.user) {
+      res.status(401).json({
+        success: false,
+        message: 'Usuário não autenticado'
+      });
+      return;
+    }
+
+    // Buscar o usuário completo para verificar se é admin
+    const usuario = await Usuario.findById(req.user.id)
+      .populate({
+        path: 'perfil',
+        populate: {
+          path: 'permissoes',
+          model: 'Permissao'
+        }
+      });
+
+    if (!usuario) {
+      res.status(401).json({
+        success: false,
+        message: 'Usuário não encontrado'
+      });
+      return;
+    }
+
+    // Verificar se o usuário tem perfil de administrador
+    const perfilPopulado = usuario.perfil as any;
+    const isAdmin = perfilPopulado.nome === 'Administrador' || 
+                   perfilPopulado.codigo === 'ADMIN' ||
+                   req.user.permissoes.includes('ADMIN_TOTAL');
+
+    if (!isAdmin) {
+      res.status(403).json({
+        success: false,
+        message: 'Operação restrita a administradores'
+      });
+      return;
+    }
+
+    next();
+  } catch (error) {
+    if (process.env.NODE_ENV === 'development') {
+      console.error('Erro na verificação de admin:', error);
+    }
+    res.status(500).json({
+      success: false,
+      message: 'Erro interno do servidor'
+    });
+  }
 };
 
 export const generateToken = (userId: string, email: string): string => {
