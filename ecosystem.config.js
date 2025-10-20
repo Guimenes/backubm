@@ -3,9 +3,9 @@ module.exports = {
     {
       name: "seminario-ubm-backend",
       script: "dist/server.js",
-      cwd: "/root/backubm",
-      instances: 2, // 2 instâncias para load balancing
-      exec_mode: "cluster",
+      cwd: "/home/guilherme/backubm",
+      instances: 1, // Começar com 1 instância para debug
+      exec_mode: "fork",
       watch: false,
       env_file: ".env",
       env: {
@@ -18,9 +18,9 @@ module.exports = {
       min_uptime: "10s",
 
       // Logs
-      log_file: "/root/backubm/logs/combined.log",
-      out_file: "/root/backubm/logs/out.log",
-      error_file: "/root/backubm/logs/error.log",
+      log_file: "/home/guilherme/backubm/logs/combined.log",
+      out_file: "/home/guilherme/backubm/logs/out.log",
+      error_file: "/home/guilherme/backubm/logs/error.log",
       log_date_format: "YYYY-MM-DD HH:mm Z",
 
       // Configurações de memória
@@ -37,11 +37,11 @@ module.exports = {
 
   deploy: {
     production: {
-      user: "root",
+      user: "guilherme",
       host: "177.71.71.149",
       ref: "origin/main",
       repo: "https://github.com/Guimenes/backubm.git",
-      path: "/root/backubm",
+      path: "/home/guilherme/backubm",
       "post-deploy":
         "npm install && npm run build && pm2 reload ecosystem.config.js --env production",
     },
