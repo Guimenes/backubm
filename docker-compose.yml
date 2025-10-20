@@ -1,4 +1,4 @@
-version: '3.8'
+version: "3.8"
 
 services:
   # Banco de dados MongoDB
@@ -11,18 +11,30 @@ services:
       MONGO_INITDB_ROOT_PASSWORD: seminario123
       MONGO_INITDB_DATABASE: seminario_ubm
     ports:
-      - "27018:27017"
+      - "0.0.0.0:27018:27017"
     volumes:
       - mongodb_data:/data/db
       - ./init-mongo-docker.js:/docker-entrypoint-initdb.d/init-mongo.js:ro
+      - ./logs/mongodb:/var/log/mongodb
     networks:
       - seminario_network
     healthcheck:
       test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "5"
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+        reservations:
+          memory: 512M
 
 volumes:
   mongodb_data:
